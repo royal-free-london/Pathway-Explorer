@@ -59,11 +59,6 @@ eventLog <- d2 %>%
   )# %>% 
   #filter_trim(start_activities = c("Dermatology New", "Dermatology Target New" ))
 
-simple_EventLog <- bupaR::simple_eventlog(eventlog = d2,
-case_id = "Local_Patient_ID",
-             activity_id = "Appointment_Type",
-             timestamp = "Attendance_Date" )
-
 p1 <- eventLog %>% 
  process_map(type=frequency("relative"))
              
