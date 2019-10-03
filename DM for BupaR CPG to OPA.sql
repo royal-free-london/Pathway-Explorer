@@ -1,61 +1,4 @@
-DROP TABLE div_perf.dbo.CPG_Elective_EventLog3
 
-
-select * into div_perf.dbo.CPG_Elective_EventLog3
-from (
-SELECT distinct J.*, mrn, CPG_PrimaryDiagnosis, [Admission Date],  Decided_to_Admit_Date, [Elective/Non-Elective], Site
-
-                   FROM
-                   [DIV_Perf].dbo.[CPG_Pathway_Analytics_Metrics_Backup] k
-                   right join 
-                   ( select * from(
-                   SELECT local_patient_id
-              
-                   as Case_ID, 'Referral Date' as Activity, referral_request_received_date as timestamp FROM rf_performance.dbo.rf_performance_opa_main
-                   where referral_request_received_date between '01/01/2018' and '31/01/2018'
-                   UNION ALL
-                   
-                   
-				    SELECT local_patient_id
-        
-                   as Case_ID, 'First Outpatient appointment' as Activity, attendance_date as timestamp FROM rf_performance.dbo.rf_performance_opa_main
-                   where First_Attendance = 1 and
-				    attendance_date between '01/01/2018' and '01/04/2019'
-
-                   UNION ALL
-                   
-				   SELECT local_patient_id
-        
-                   as Case_ID, 'Subsequent Outpatient appointment' as Activity, attendance_date as timestamp FROM rf_performance.dbo.rf_performance_opa_main
-                   where First_Attendance = 2 and Outcome_of_Attendance <> 1 and
-				    attendance_date between '01/01/2018' and '01/04/2019'
-
-                   UNION ALL
-
-
-                   SELECT local_patient_id as Case_ID, 'Final Outpatient Appointment' as Activity, attendance_date as timestamp FROM rf_performance.dbo.rf_performance_opa_main
-                   where Outcome_of_Attendance = 1 and attendance_date between '01/01/2018' and '31/03/2019'
-                   UNION ALL
-                   
-                   SELECT mrn as Case_ID, 'Decision to Admit' as Activity, Decided_to_Admit_Date as timestamp FROM [DIV_Perf].dbo.[CPG_Pathway_Analytics_Metrics_Report_Backup] 
-                   where Decided_to_Admit_Date between '01/01/2018' and '01/04/2019'
-                   UNION ALL
-                   
-                   SELECT mrn as Case_ID, 'Inpatient Spell' as Activity, [Admission Date] as timestamp FROM [DIV_Perf].dbo.[CPG_Pathway_Analytics_Metrics_Report_backup] 
-                   where [Admission Date] between '01/01/2018' and '01/04/2019'
-                   ) a) J
-                   on k.mrn = J.Case_ID
-                   WHERE  
-                   ([Admission Date]  between '01/01/2018' and '01/04/2019' OR ([Admission Date] is null))
-                   AND
-                   (Decided_to_Admit_Date between '01/01/2018' and '31/12/2018' OR (Decided_to_Admit_Date is null)) 
-                   AND  (decided_to_admit_Date < [Admission Date] OR ([Admission Date] is null) or Decided_to_Admit_Date is null)
-                      AND [Elective/Non-Elective] = 'Elective' 
-
-) a
-
-
-select * from div_perf.dbo.CPG_Elective_EventLog3
 -----------
 
 select top 20 * from 
@@ -63,16 +6,6 @@ select top 20 * from
 
 select top 5 *  FROM
                    [DIV_Perf].dbo.[CPG_Pathway_Analytics_Metrics_backup] 
-
-
-
-
-
-
-
-
-
-
 	--------------
 
 	drop table ##op_link
