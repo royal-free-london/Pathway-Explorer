@@ -1,10 +1,10 @@
+DROP TABLE div_perf.dbo.CPG_Elective_EventLog3
+
 
 select * into div_perf.dbo.CPG_Elective_EventLog3
 from (
-SELECT distinct J.*, mrn, CPG_PrimaryDiagnosis, [Admission Date],  Decided_to_Admit_Date, [Elective/Non-Elective],
-CASE WHEN [Admission Date] is null then 'Not Admitted'
-                   when Decided_to_Admit_Date is null then 'Not Admitted'
-                   else 'Admitted' end as Inpatient_Flag
+SELECT distinct J.*, mrn, CPG_PrimaryDiagnosis, [Admission Date],  Decided_to_Admit_Date, [Elective/Non-Elective], Site
+
                    FROM
                    [DIV_Perf].dbo.[CPG_Pathway_Analytics_Metrics_Backup] k
                    right join 
@@ -53,6 +53,9 @@ CASE WHEN [Admission Date] is null then 'Not Admitted'
                       AND [Elective/Non-Elective] = 'Elective' 
 
 ) a
+
+
+select * from div_perf.dbo.CPG_Elective_EventLog3
 -----------
 
 select top 20 * from 
@@ -77,7 +80,7 @@ drop table ##op_link1
 drop table ##op_admitted
 
 DECLARE @StartDate AS DATETIME ='01/04/2017'
-DECLARE @EndDate AS DATETIME = '31/03/2019'
+DECLARE @EndDate AS DATETIME = '01/05/2019'
 
 
 Select
@@ -96,7 +99,7 @@ where n =1
 
 -----------
 DECLARE @StartDate AS DATETIME ='01/04/2017'
-DECLARE @EndDate AS DATETIME = '31/03/2019'
+DECLARE @EndDate AS DATETIME = '01/05/2019'
 
 select opl.Local_Patient_ID,opl.Attendance_Date as [DischargedFromOPAClinicDate],opl.Referral_ID, Attended_or_Did_Not_Attend, Appointment_Resource,Appointment_Type,
 opl.specialty_Desc as Specialty_OP_Discharge,'-' as BlankColumn,opa.referral_request_received_date,opa.Attendance_Date,First_Attendance,Outcome_of_Attendance,
