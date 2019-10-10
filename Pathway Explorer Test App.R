@@ -14,6 +14,27 @@ library(shinyjqui)
 library(tidyverse)
 
 
+####----Data Access----####
+con <-
+  dbConnect(
+    odbc(),
+    Driver = "SQL Server",
+    Server = "rfh-information",
+    Database = "RF_Performance",
+    Trusted_Connection = "True"
+  )
+
+
+query <- paste0("
+                SELECT *
+                FROM div_perf.dbo.CPG_Elective_EventLog3 ")
+
+df1 <- dbGetQuery(con,
+                  query)
+dbDisconnect(con)
+
+
+
 ui <- dashboardPage(
   # Application title
   dashboardHeader(title = "Pathway Explorer TEST"),
@@ -26,41 +47,35 @@ ui <- dashboardPage(
     selectInput(
      "site",
       "Select the Site",
-      c("All", "ROYAL FREE HOSPITAL", "BARNET HOSPITAL"),
+     c("All", levels(as.factor(df1$Site))),
       multiple = F,
        selectize = T
      ),
     selectInput(
       "CPG",
       "Select CPG",
-      c(
-        "Haematuria",
-        "Dyspepsia",
-        "InflamBowelDisease",
-        "HeartFailure",
-        "ElectiveKnee",
-        "ElectiveHip",
-        "HPB Tumours",
-        "Cataracts",
-        "COPD",
-        "RightUpperQuadrantPain",
-        "IOL_Balloon_Other",
-        "InflamBowelDisease",
-        "AcuteKidneyInjury",
-        "Vascular Prehab",
-        "PaediatricDIB",
-        "ChestPain",
-        "Pneumonia",
-        "AcuteTonsilitis",
-        "Epistaxis",
-        "PulmonaryEmbolism"
-      ),
+      c("All", levels(as.factor(df1$CPG_PrimaryDiagnosis))),
       selected =  "HPB Tumours",
       selectize = T
-    ),
+     )
+    ,
+
     selectInput(
       "activity",
-      "select activity",
+      "Select Level of Activity",
+      as.factor(
+        c(
+          "Activity",
+          "Detailed Activity"
+        )
+      ),
+      selected = "Activity",
+      selectize = T,
+      multiple = F
+   ),
+    selectInput(
+      "activity2",
+      "Select Activity",
       as.factor(
         c(
           "decision to admit",
@@ -71,20 +86,21 @@ ui <- dashboardPage(
           "final outpatient appointment"
         )
       ),
+    selectize = T,
+    multiple = TRUE,
+    selected = 
+      c(
+        "decision to admit",
+        "referral date",
+        "first outpatient appointment",
+        "subsequent outpatient appointment",
+        "inpatient spell",
+        "final outpatient appointment"
+      )
+    
+  ),
       
-      selected = as.factor(
-        c(
-          "decision to admit",
-          "referral date",
-          "first outpatient appointment",
-          "subsequent outpatient appointment",
-          "inpatient spell",
-          "final outpatient appointment"
-        )
-      ),
-      selectize = T,
-      multiple = TRUE
-    ),
+ 
     
     textInput("Referral_ID", "Referral ID", 
               value = "", width = NULL, placeholder = NULL),
@@ -103,24 +119,41 @@ ui <- dashboardPage(
   dashboardBody(h2("Map"),
                 withSpinner(
                   svgPanZoomOutput(outputId = 'map')
-                )#, 
+                ), 
                 #textOutput("inputLog")
+                textOutput("greeting")
   )
 )
+
+
+
+
   
   server <- function(input, output) {
     
     #output$inputLog <- renderText({class(input$site)})
+    output$greeting<- renderText({class(input$site)})
+    
+  
+    
+    df_eventlog <- reactive({
+      df1 %>%
+        mutate(
+          activity_instance = 1:nrow(.),
+          resource = NA,
+          status = "complete"
+        ) %>%
+        filter(CPG_PrimaryDiagnosis==input$CPG) %>%
+        filter(Site == input$site)
+    })
+    
+    observe({ df_eventlog() })
     
     output$map <- renderSvgPanZoom({
-      ###---- Variables ----####
-      site <- input$site 
-      CPG_PrimaryDiagnosis <- input$CPG
-      Activity <- input$Activity
-      Case_ID <- input$Referral_ID
-      pcnt_act_freq <- input$pcnt_act_freq / 100
       
-      ####----Data Access----####
+      ####----Data Prep----####
+      
+      
       con <-
         dbConnect(
           odbc(),
@@ -131,36 +164,46 @@ ui <- dashboardPage(
         )
       
       
-      query <- paste0("              	SELECT *
-                      FROM div_perf.dbo.CPG_Elective_EventLog3
-                      ")
+      
+      query <- paste0("
+                SELECT *
+                FROM div_perf.dbo.CPG_Elective_EventLog3 ")
       
       df1 <- dbGetQuery(con,
                         query)
       dbDisconnect(con)
       
-      ####----Data Prep----####
+      
+      
+      
+      
       
       ##create initial eventlog and  filter for cpg
-      eventLog20 <- df1 %>%
-        mutate(
-          activity_instance = 1:nrow(.),
-          resource = NA,
-          status = "complete"
-        ) %>%
-        filter(CPG_PrimaryDiagnosis==input$CPG)
-
+      eventLog20 <- df_eventlog()
+        
+observe({
       #if site selected filter for site
       if(length(input$site)!="All") {
         eventLog20 <- eventLog20 %>%
-          filter(site ==input$site)
+          filter(Site == input$site)
         }
-      
+})
+
+observe({
       if(isTruthy(input$Referral_ID)) {
         eventLog20 <- eventLog20 %>%
           filter(case_id==input$Referral_ID)
       }
-      
+})
+      # if(isTruthy(input$activity)) {
+      #   eventLog20 <- eventLog20 %>%
+      #     filter(activity==input$activity)
+      # }
+      # 
+      # if(isTruthy(input$activity2)) {
+      #   eventLog20 <- eventLog20 %>%
+      #     filter(activity==input$activity)
+      # }
         
       eventLog20 <- eventLog20 %>%
         eventlog(
@@ -180,7 +223,7 @@ ui <- dashboardPage(
       ##Filter the event log for map based on other user selections
       
       logForMap <-
-        filter_activity_frequency(eventLog20, percentage = pcnt_act_freq) # filter by % activity threashold
+        filter_activity_frequency(eventLog20, percentage = input$pcnt_act_freq / 100) # filter by % activity threashold
       
       # logForMap <- eventlog20 %>%   process_map(type_nodes = frequency("relative"),
       #                                          type_edges = performance(mean, "days"))
