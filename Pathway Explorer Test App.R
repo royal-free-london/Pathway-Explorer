@@ -24,16 +24,14 @@ con <-
     Trusted_Connection = "True"
   )
 
-
 query <- paste0("
                 SELECT *
                 FROM div_perf.dbo.CPG_Elective_EventLog3 ")
 
 df1 <- dbGetQuery(con,
                   query)
-dbDisconnect(con)
 
-###########################
+dbDisconnect(con)
 
 ui <- dashboardPage(
   # Application title
@@ -77,7 +75,7 @@ ui <- dashboardPage(
       selectize = T,
       multiple = TRUE,
       selected =
-        levels(as.factor(df1$CPG_PrimaryDiagnosis))
+        levels(as.factor(df1$Activity))
     ),
     textInput(
       "Referral_ID",
@@ -101,17 +99,20 @@ ui <- dashboardPage(
   dashboardBody(
     h2("Map"),
     uiOutput("errorBox"),
-    withSpinner(svgPanZoomOutput(outputId = 'map'))
+    withSpinner(svgPanZoomOutput(outputId = 'map')),
+    tableOutput('data')
   )
 )
 
 
-
-
-
 server <- function(input, output) {
+
+  
   #first build the reactive data frame for the event log with all the filters
   df_eventlog <- reactive({
+    
+    gc() #clear memory
+    
     df1 %>%
       mutate(
         activity_instance = 1:nrow(.),
@@ -119,11 +120,11 @@ server <- function(input, output) {
         status = "complete"
       ) %>%
       filter(CPG_PrimaryDiagnosis == input$CPG |
-               input$CPG == "All") %>%
-      filter(Site == input$site | input$site == "All") %>%
-      filter(Case_ID == input$Referral_ID |
-               input$Referral_ID == "") %>%
-      filter(Activity %in% input$activity | is.null(input$activity))
+             input$CPG == "All") %>%
+        filter(Site == input$site | input$site == "All") %>%
+        filter(Case_ID == input$Referral_ID |
+                 input$Referral_ID == "") %>%
+        filter(Activity %in% input$activity | is.null(input$activity))
   })
   
   
@@ -138,6 +139,7 @@ server <- function(input, output) {
       "No pathways have been found for the options you have selected. Please try again."
     )
   })
+  output$data <- renderTable(df_eventlog() %>% head(10))
   
   output$map <- renderSvgPanZoom({
     if (nrow(df_eventlog()) == 0)
@@ -158,7 +160,7 @@ server <- function(input, output) {
       logForMap,
       type_nodes = frequency("absolute"),
       type_edges = performance(mean, "days")
-      
+
       #type = frequency("relative")
       ,
       render = FALSE
