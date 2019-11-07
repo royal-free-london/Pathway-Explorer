@@ -23,10 +23,16 @@ con <-
     Database = "RF_Performance",
     Trusted_Connection = "True"
   )
-
+# simple event log format
+# query <- paste0("
+#                 SELECT *
+#                 FROM div_perf.dbo.CPG_Elective_EventLog3 ")
+#event log with specialty and appointment type
 query <- paste0("
                 SELECT *
-                FROM div_perf.dbo.CPG_Elective_EventLog3 ")
+                FROM div_perf.dbo.CPG_Elective_EventLog2 ")
+
+
 
 df1 <- dbGetQuery(con,
                   query)
@@ -35,11 +41,16 @@ dbDisconnect(con)
 
 ui <- dashboardPage(
   # Application title
-  dashboardHeader(title = "Pathway Explorer TEST"),
+  dashboardHeader(title = "Pathway Explorer"),
   
   # Sidebar with a slider input for number of bins
   
   dashboardSidebar(
+    sidebarMenu(
+      menuItem("Dashboard", tabName = "Dashboard", icon("dashboard")),
+     # menuItem("Widgets", tabName = "widgets", icon("th")),
+      menuItem("Data", tabName = "data", icon("dashboard"))
+    ),
     disable = FALSE,
     collapsed = FALSE,
     selectInput(
@@ -73,10 +84,20 @@ ui <- dashboardPage(
       "Select Activity",
       levels(as.factor(df1$Activity)),
       selectize = T,
-      multiple = TRUE,
-      selected =
-        levels(as.factor(df1$Activity))
+      multiple = TRUE #,
+      # selected =
+      #   levels(as.factor(df1$Activity))
     ),
+    selectInput(
+      "specialty",
+      "Select Specialty at Discharge",
+      levels(as.factor(df1$Specialty_At_Discharge)),
+      selectize = T,
+      multiple = TRUE #,
+      # selected =
+      #   levels(as.factor(df1$Activity))
+    ),
+    
     textInput(
       "Referral_ID",
       "Referral ID",
@@ -94,19 +115,41 @@ ui <- dashboardPage(
       post  = " %"
     ),
     div(style = "text-align:center", submitButton("Update Pathway Map", icon("refresh")))
-  ),
+  
+    ),
   
   dashboardBody(
     h2("Map"),
     uiOutput("errorBox"),
     withSpinner(svgPanZoomOutput(outputId = 'map')),
-    tableOutput('data')
+    tabItems(
+      tabItem(tabName = "Sustained Data",
+              fluidRow(
+                box(tableOutput("data")),
+                    box(
+                      title = "Data"
+           )
+        )
+      )
+    )#,
+   # tabItem(tabName = "widgets",
+          #  h2("Widgets"))
+    )
   )
-)
+
+   # tableOutput('data')
+  # ),
+  # mainPanel(
+  #   tabsetPanel(type = "tab",
+  #               tabPanel("Sustained Data",tableOutput("data")) #,
+  #               #tabPanel("Original Data (Input)", dataTableOutput("table"))
+  #   ))
+
+
 
 
 server <- function(input, output) {
-
+  
   
   #first build the reactive data frame for the event log with all the filters
   df_eventlog <- reactive({
@@ -119,14 +162,16 @@ server <- function(input, output) {
         resource = NA,
         status = "complete"
       ) %>%
+      mutate(Activity = !!as.name(input$activityLevel))%>%
       filter(CPG_PrimaryDiagnosis == input$CPG |
-             input$CPG == "All") %>%
-        filter(Site == input$site | input$site == "All") %>%
-        filter(Case_ID == input$Referral_ID |
-                 input$Referral_ID == "") %>%
-        filter(Activity %in% input$activity | is.null(input$activity))
+               input$CPG == "All") %>%
+      filter(Site == input$site | input$site == "All") %>%
+      filter(Case_ID == input$Referral_ID |
+               input$Referral_ID == "") %>%
+   filter(Activity %in% input$activity | is.null(input$activity))  %>%
+      filter(Specialty_At_Discharge %in% input$specialty | is.null(input$specialty))
   })
-  
+  #
   
   output$errorBox <- renderUI({
     if (nrow(df_eventlog()) != 0)
@@ -159,16 +204,16 @@ server <- function(input, output) {
     process_map(
       logForMap,
       type_nodes = frequency("absolute"),
-      type_edges = performance(mean, "days")
-
-      #type = frequency("relative")
+      type_edges = frequency("relative")
+      # type_edges = performance(mean, "days")
+      
       ,
       render = FALSE
     ) %>%
       generate_dot() %>%
-      grViz(width = 800, height = 1600) %>%
+      grViz(width = 1000, height = 1800) %>%
       export_svg %>%
-      svgPanZoom(height = 800, controlIconsEnabled = TRUE)
+      svgPanZoom(height = 1800, controlIconsEnabled = TRUE)
   })
   
 }
