@@ -30,7 +30,7 @@ con <-
 #event log with specialty and appointment type
 query <- paste0("
                 SELECT *
-                FROM div_perf.dbo.CPG_Elective_EventLog2 ")
+                FROM div_perf.dbo.CPG_Elective_EventLog24")
 
 
 
@@ -43,13 +43,12 @@ ui <- dashboardPage(
   # Application title
   dashboardHeader(title = "Pathway Explorer"),
   
+  
   # Sidebar with a slider input for number of bins
   
   dashboardSidebar(
     sidebarMenu(
-      menuItem("Dashboard", tabName = "Dashboard", icon("dashboard")),
-     # menuItem("Widgets", tabName = "widgets", icon("th")),
-      menuItem("Data", tabName = "data", icon("dashboard"))
+      menuItem("Dashboard", tabName = "Dashboard", icon("dashboard"))
     ),
     disable = FALSE,
     collapsed = FALSE,
@@ -66,7 +65,7 @@ ui <- dashboardPage(
       c("All", levels(as.factor(
         df1$CPG_PrimaryDiagnosis
       ))),
-      selected =  "HPB Tumours",
+      selected =  "ElectiveHip",
       selectize = T
     )
     ,
@@ -75,27 +74,32 @@ ui <- dashboardPage(
       "activityLevel",
       "Select Level of Activity",
       as.factor(c("Activity", "Detailed Activity")),
-      selected = "Activity",
+      selected = "Detailed Activity",
       selectize = T,
       multiple = F
     ),
     selectInput(
-      "activity",
-      "Select Activity",
-      levels(as.factor(df1$Activity)),
+      "trimstart",
+      "Filter by Start Activity",
+      levels(as.factor(df1$`Detailed Activity`)),
       selectize = T,
-      multiple = TRUE #,
-      # selected =
-      #   levels(as.factor(df1$Activity))
+      multiple = FALSE,
+      selected = "Referral Date"
+    ),
+    selectInput(
+      "activity2",
+      "Select Presence of Appointment Types",
+      levels(as.factor(df1$`Detailed Activity`)),
+      selectize = T,
+      multiple = TRUE 
     ),
     selectInput(
       "specialty",
       "Select Specialty at Discharge",
-      levels(as.factor(df1$Specialty_At_Discharge)),
+      levels(as.factor(df1$Specialty)),
       selectize = T,
-      multiple = TRUE #,
-      # selected =
-      #   levels(as.factor(df1$Activity))
+      multiple = TRUE 
+
     ),
     
     textInput(
@@ -117,27 +121,20 @@ ui <- dashboardPage(
     div(style = "text-align:center", submitButton("Update Pathway Map", icon("refresh")))
   
     ),
+
   
   dashboardBody(
     h2("Map"),
     uiOutput("errorBox"),
     withSpinner(svgPanZoomOutput(outputId = 'map')),
-    tabItems(
-      tabItem(tabName = "Sustained Data",
-              fluidRow(
-                box(tableOutput("data")),
-                    box(
-                      title = "Data"
-           )
+    tableOutput('data')
         )
       )
-    )#,
-   # tabItem(tabName = "widgets",
-          #  h2("Widgets"))
-    )
-  )
 
-   # tableOutput('data')
+    #)
+  #)
+
+   tableOutput('data')
   # ),
   # mainPanel(
   #   tabsetPanel(type = "tab",
@@ -168,8 +165,7 @@ server <- function(input, output) {
       filter(Site == input$site | input$site == "All") %>%
       filter(Case_ID == input$Referral_ID |
                input$Referral_ID == "") %>%
-   filter(Activity %in% input$activity | is.null(input$activity))  %>%
-      filter(Specialty_At_Discharge %in% input$specialty | is.null(input$specialty))
+      filter(Specialty %in% input$specialty | is.null(input$specialty))
   })
   #
   
@@ -184,7 +180,7 @@ server <- function(input, output) {
       "No pathways have been found for the options you have selected. Please try again."
     )
   })
-  output$data <- renderTable(df_eventlog() %>% head(10))
+  output$data <- renderTable(df_eventlog() %>% head(100))
   
   output$map <- renderSvgPanZoom({
     if (nrow(df_eventlog()) == 0)
@@ -199,6 +195,9 @@ server <- function(input, output) {
         lifecycle_id = "status",
         resource_id = "resource"
       ) %>%
+      filter_trim(start_activities = input$trimstart) %>%
+      # filter_activity_presence(input$activity2 |
+      #                            input$activity2 == "" ) %>%
       filter_activity_frequency(percentage = input$pcnt_act_freq / 100)
     
     process_map(
@@ -220,3 +219,5 @@ server <- function(input, output) {
 
 # Run the application
 shinyApp(ui = ui, server = server)
+#runApp('//netshare-ds3/Performance/Projects/Pathway Explorer/Code/Pathway Explorer Test App.R')
+
