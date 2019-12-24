@@ -8,12 +8,12 @@ select top 5 *  FROM
                    [DIV_Perf].dbo.[CPG_Pathway_Analytics_Metrics_backup] 
 	--------------
 
-	drop table ##op_link
+drop table ##op_link
 drop table ##op_link1
 drop table ##op_admitted
 
 DECLARE @StartDate AS DATETIME ='01/04/2017'
-DECLARE @EndDate AS DATETIME = '01/05/2019'
+DECLARE @EndDate AS DATETIME = '01/10/2019'
 
 
 Select
@@ -23,8 +23,8 @@ select
 ROW_NUMBER() OVER(PARTITION BY Local_Patient_ID,referral_id  ORDER by referral_id DESC) AS N,
   Outcome_of_Attendance_desc,Local_Patient_ID,Attendance_Date,Referral_ID,Specialty_Desc  from rf_performance.dbo.rf_performance_opa_main opa
 where 
---Attended_or_Did_Not_Attend in ('5','6','05','06')
---and 
+Attended_or_Did_Not_Attend in ('5','6','05','06')
+and 
 Administrative_Category in ('1','01')
 and attendance_date between @StartDate and @EndDate
 )as op_ref
@@ -32,9 +32,9 @@ where n =1
 
 -----------
 DECLARE @StartDate AS DATETIME ='01/04/2017'
-DECLARE @EndDate AS DATETIME = '01/05/2019'
+DECLARE @EndDate AS DATETIME = '01/10/2019'
 
-select opl.Local_Patient_ID,opl.Attendance_Date as [DischargedFromOPAClinicDate],opl.Referral_ID, Attended_or_Did_Not_Attend, Appointment_Resource,Appointment_Type,
+select distinct opl.Local_Patient_ID,opl.Attendance_Date as [DischargedFromOPAClinicDate],opl.Referral_ID, Attended_or_Did_Not_Attend, Appointment_Resource,Appointment_Type,
 opl.specialty_Desc as Specialty_OP_Discharge,'-' as BlankColumn,opa.referral_request_received_date,opa.Attendance_Date,First_Attendance,Outcome_of_Attendance,
 opa.Specialty_Desc as Specialty_OP_Attendance
 
@@ -50,8 +50,8 @@ into ##op_link1
 --      (Appointment_Type NOT LIKE '%POA%') and
 --      (Appointment_Type NOT LIKE '%PAC%'))
 --	 and
---Attended_or_Did_Not_Attend in ('5','6','05','06')
---and 
+Attended_or_Did_Not_Attend in ('5','6','05','06')
+and 
 Administrative_Category in ('1','01')
 	  
 	  )
@@ -169,7 +169,7 @@ select * from ##op_admitted
 DROP TABLE div_perf.dbo.CPG_Elective_EventLog
 
 DECLARE @StartDate AS DATETIME ='01/04/2017'
-DECLARE @EndDate AS DATETIME = '01/05/2019'
+DECLARE @EndDate AS DATETIME = '01/10/2019'
 
 
 select Consultant_At_Episode, Consultant_Code, Anon,
@@ -217,6 +217,35 @@ where [Admission Date] between @StartDate and  @EndDate
 
 
 
+-------- SUMMARIZED DATAMODEL WITH 2018 REFERRALS AND ACTIVITY UPTO 0CTOBER 19, NULLS REMOVED AND ONLY ESSENTIAL FIELDS INCLUDED
+
+SELECT * INTO
+div_perf.dbo.CPG_Elective_EventLog_Lite_WIDE
+from (
+select distinct 
+referral_id as Case_ID
+,referral_request_received_date
+,Consultant_At_Episode as Resource
+ ,Specialty_At_Discharge as Specialty
+ ,attendance_date
+ ,Appointment_Type
+ , Specialty_OP_Discharge
+ ,First_Attendance
+ ,Outcome_of_Attendance
+ ,Appointment_Resource
+,Decided_to_Admit_Date
+,[Admission_Date]
+,Consultant_At_Episode
+ ,CPG_PrimaryDiagnosis, Site
+
+from div_perf.dbo.CPG_Elective_EventLog
+where referral_request_received_date is not null
+and Referral_ID <> ' '
+and referral_request_received_date between '01/01/2018' and '31/12/2018'
+) a
 
 
-select * from div_perf.dbo.CPG_Elective_EventLog
+
+
+SELECT * FROM
+div_perf.dbo.CPG_Elective_EventLog_Lite_WIDE
