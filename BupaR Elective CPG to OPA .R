@@ -8,6 +8,7 @@ library(plotly)
 library(bupaR)
 library(edeaR)
 library(processmapR)
+library(processanimateR)
 source("//NETSHARE-DS3/Performance/Team/R/RFLStyle.r")
 
 
